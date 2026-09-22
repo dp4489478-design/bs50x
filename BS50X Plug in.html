@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SENTINEL // IP REMOVAL · BS50X</title>
+<style>
+:root{
+  --bg:#04060a; --line:#12321f; --green:#3ef07a; --green-dim:#1f9a51;
+  --amber:#e0a83e; --red:#e05a4e; --crit:#ff5240; --blue:#4ea1e0;
+  --text:#c8f2d6; --muted:#4d7a5f; --accent:var(--green);
+}
+body.lvl4{--accent:var(--amber);--line:#3a3115;--text:#f2e3c8;--muted:#8a7340;}
+body.lvl3{--accent:var(--amber);--line:#452f12;--text:#f6ddb8;--muted:#96773f;}
+body.lvl2{--accent:var(--red);--line:#4a1d18;--text:#f7d4cf;--muted:#9c5b52;}
+body.lvl1{--accent:var(--crit);--line:#5c1b14;--text:#ffd8d2;--muted:#b0554a;}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+  user-select:none;-webkit-user-select:none}
+body.locked,body.locked *{cursor:none !important}
+
+#rain{position:fixed;inset:0;z-index:0;opacity:.5}
+#vig,#scan{position:fixed;inset:0;z-index:4;pointer-events:none}
+#vig{background:radial-gradient(ellipse at center,transparent 44%,rgba(0,0,0,.78) 100%)}
+#scan{background:repeating-linear-gradient(180deg,rgba(0,0,0,.25) 0 1px,transparent 1px 3px);mix-blend-mode:multiply}
+#flash{position:fixed;inset:0;z-index:5;pointer-events:none;background:var(--accent);opacity:0;transition:opacity .1s}
+#glitch{position:fixed;inset:0;z-index:5;pointer-events:none;opacity:0;
+  background:linear-gradient(90deg,rgba(255,0,60,.35),transparent 30%,rgba(0,255,180,.25) 60%,transparent)}
+
+#arm{position:fixed;inset:0;z-index:20;background:#04060a;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:16px;text-align:center;padding:24px}
+#arm h1{font-size:clamp(20px,3.4vw,38px);letter-spacing:4px;color:var(--green);margin:0}
+#arm .sub{color:var(--muted);font-size:13px;letter-spacing:2px}
+#arm .warn{border:1px solid #3a3115;color:var(--amber);font-size:13px;line-height:1.7;
+  padding:14px 20px;max-width:640px}
+#arm kbd{background:#0d1a12;border:1px solid var(--green-dim);color:var(--green);padding:2px 9px;font-size:13px;letter-spacing:2px}
+#engage{background:#1f9a51;color:#fff;border:0;padding:16px 42px;font:inherit;font-weight:800;
+  letter-spacing:3px;font-size:15px;cursor:pointer;border-radius:4px}
+#engage:hover{background:#27b862}
+#armIn{background:#071019;border:1px solid #1b4b35;color:var(--text);padding:12px 16px;
+  border-radius:4px;font:inherit;width:min(420px,84vw);text-align:center;letter-spacing:1px}
+
+.wrap{position:relative;z-index:1;height:100vh;padding:11px 14px 9px;display:flex;flex-direction:column;gap:8px}
+body.shk1 .wrap{animation:sh .3s infinite}
+body.shk2 .wrap{animation:sh .16s infinite}
+body.shk3 .wrap{animation:sh2 .09s infinite}
+@keyframes sh{0%,100%{transform:translate(0,0)}50%{transform:translate(1px,-1px)}}
+@keyframes sh2{0%{transform:translate(-2px,1px)}33%{transform:translate(2px,-2px)}66%{transform:translate(-1px,-2px)}100%{transform:translate(2px,1px)}}
+
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;
+  border-bottom:1px solid var(--line);padding-bottom:6px;flex-shrink:0}
+.topbar .title{color:var(--accent);font-size:12px;letter-spacing:2px}
+.topbar .right{display:flex;gap:14px;align-items:center;font-size:11px;color:var(--muted);letter-spacing:1px}
+.dots span{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;background:#2a3b31}
+body.lvl1 .dots span{background:var(--crit)}
+.tl{display:flex;align-items:center;gap:9px;border:1px solid var(--line);padding:3px 11px}
+.tl .lbl{font-size:9px;letter-spacing:2px;color:var(--muted)}
+.tl .val{font-size:18px;font-weight:800;letter-spacing:3px;color:var(--accent)}
+body.lvl2 .tl,body.lvl1 .tl{animation:pulse .7s infinite}
+
+.grid{display:grid;grid-template-columns:1.32fr 1.12fr .84fr;gap:9px;flex:1;min-height:0}
+.panel{border:1px solid var(--line);padding:8px 11px;min-height:0;display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(62,240,122,.035),transparent 45%)}
+body.lvl2 .panel,body.lvl1 .panel{background:linear-gradient(180deg,rgba(255,82,64,.05),transparent 45%)}
+.panel h3{margin:0 0 6px;font-size:9.5px;text-transform:uppercase;letter-spacing:1.8px;
+  color:var(--muted);font-weight:400;display:flex;justify-content:space-between;align-items:center;gap:8px}
+
+#terminal{flex:1;overflow:hidden;font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+#terminal .ln{opacity:0;animation:fi .1s forwards}
+@keyframes fi{to{opacity:1}}
+.ok{color:var(--green)}.warn{color:var(--amber)}.err{color:var(--red)}
+.info{color:var(--blue)}.dim{color:var(--muted)}
+.crit{color:var(--crit);font-weight:700;text-shadow:0 0 9px rgba(255,82,64,.65)}
+.hdr{color:#fff;font-weight:800;letter-spacing:2px;background:rgba(255,82,64,.14);padding:0 4px}
+
+.hero{display:flex;justify-content:space-between;gap:10px;border:1px solid var(--line);padding:7px 10px;margin-bottom:6px}
+.eyebrow{font-size:9px;letter-spacing:2.4px;color:var(--muted)}
+.case{font-size:15px;color:var(--accent);letter-spacing:1.5px}
+.muted{color:var(--muted);font-size:11px}
+.risk{text-align:right;font-size:10.5px;letter-spacing:1.4px;font-weight:800;color:var(--crit)}
+.risk small{color:var(--amber);font-weight:400}
+.clockrow{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);
+  padding:6px 10px;margin-bottom:6px}
+#elapsed{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:clamp(22px,2.6vw,36px);
+  font-weight:800;letter-spacing:4px;color:var(--accent);text-shadow:0 0 14px var(--accent)}
+body.lvl2 #elapsed,body.lvl1 #elapsed{animation:pulse .7s infinite}
+.chips{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px}
+.chips span{font-size:9px;letter-spacing:1.1px;border:1px solid var(--line);color:var(--muted);padding:2px 5px}
+
+/* ---- detection feed ---- */
+#detFeed{overflow:hidden;font-size:10.5px;font-family:ui-monospace,Menlo,monospace;flex:1;min-height:0}
+.det{border-left:2px solid var(--line);padding:3px 0 3px 7px;margin-bottom:4px;opacity:0;animation:fi .14s forwards}
+.det.sev-crit{border-color:var(--crit);background:rgba(255,82,64,.07)}
+.det.sev-high{border-color:var(--red)}
+.det.sev-med{border-color:var(--amber)}
+.det.sev-low{border-color:var(--green-dim)}
+.det .t1{display:flex;justify-content:space-between;gap:6px}
+.det .sig{color:var(--text);font-weight:700}
+.det .sc{font-weight:800}
+.sev-crit .sc{color:var(--crit)}.sev-high .sc{color:var(--red)}
+.sev-med .sc{color:var(--amber)}.sev-low .sc{color:var(--green)}
+.det .t2{color:var(--muted);display:flex;justify-content:space-between;gap:6px;margin-top:1px}
+
+/* ---- geo trace ---- */
+#geoWrap{position:relative;border:1px solid var(--line);margin-bottom:6px}
+#geo{display:block;width:100%;height:150px}
+#geoLbl{position:absolute;left:6px;bottom:4px;font-size:9px;letter-spacing:1.4px;color:var(--muted);
+  font-family:ui-monospace,Menlo,monospace}
+#hops{font-size:10px;font-family:ui-monospace,Menlo,monospace;overflow:hidden;max-height:118px}
+#hops .h{display:grid;grid-template-columns:22px 1fr 92px 46px;gap:5px;padding:1.5px 0;
+  border-bottom:1px solid #0d1712;opacity:0;animation:fi .12s forwards}
+#hops .h .n{color:var(--muted)}
+#hops .h .ms{text-align:right;color:var(--amber)}
+#hops .h .loc{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hops .h.final{color:var(--crit);font-weight:700}
+
+.stat-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px}
+.stat-row .label{color:var(--muted)}
+.bar{height:5px;background:#0d150f;border:1px solid var(--line);overflow:hidden;margin-bottom:7px}
+.bar>div{height:100%;background:var(--green-dim);transition:width .3s}
+.bar>div.hot{background:var(--crit)}
+
+.phase{display:flex;justify-content:space-between;gap:8px;font-size:10px;margin-bottom:2px;line-height:1.45}
+.phase .st{color:var(--muted);flex-shrink:0}
+.phase.active,.phase.active .st{color:var(--amber)}
+.phase.done{opacity:.5}.phase.done .st{color:var(--green)}
+
+table.cf{width:100%;border-collapse:collapse;font-size:10px;font-family:ui-monospace,Menlo,monospace}
+table.cf th{text-align:left;color:var(--muted);font-weight:400;letter-spacing:1px;
+  border-bottom:1px solid var(--line);padding:2px 0;font-size:9px}
+table.cf td{padding:1.5px 0;border-bottom:1px solid #0d1712;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+td.dis{color:var(--crit);font-weight:700}td.hij{color:var(--amber);font-weight:700}td.res{color:var(--green)}
+
+.badge{font-size:9px;padding:2px 6px;border:1px solid var(--green-dim);color:var(--green);letter-spacing:1.2px;white-space:nowrap}
+.badge.live{animation:pulse 1.6s infinite}
+.badge.alert{border-color:var(--crit);color:var(--crit);animation:pulse .55s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.28}}
+
+#banner{position:fixed;left:0;right:0;top:43%;z-index:6;pointer-events:none;text-align:center;opacity:0;transition:opacity .18s}
+#banner .b{display:inline-block;padding:13px 44px;border:2px solid var(--crit);background:rgba(12,2,2,.9);
+  color:var(--crit);font-size:clamp(15px,2.5vw,29px);font-weight:900;letter-spacing:7px;
+  text-shadow:0 0 22px rgba(255,82,64,.75)}
+#banner .s{display:block;margin-top:6px;font-size:11px;letter-spacing:3px;color:var(--amber);font-weight:400}
+#banner .b.secure{border-color:var(--green);color:var(--green);background:rgba(2,10,4,.9);text-shadow:0 0 22px rgba(62,240,122,.75)}
+#banner .b.secure .s{color:var(--green-dim)}
+
+#spark{width:100%;height:42px;display:block}
+.footer{flex-shrink:0;border-top:1px solid var(--line);padding-top:5px;font-size:10px;color:var(--muted);
+  display:flex;justify-content:space-between;gap:10px}
+#relhint{opacity:.45}
+::-webkit-scrollbar{width:0;height:0}
+@media(max-width:1150px){.grid{grid-template-columns:1.25fr 1fr}.col3{display:none}}
+
+#alert{position:fixed;inset:0;z-index:15;display:none;align-items:center;justify-content:center;
+  background:rgba(3,6,9,.6);padding:24px;pointer-events:none}
+#alert.show{display:flex}
+#alert .box{max-width:640px;width:100%;border:2px solid var(--accent);background:#050b09;
+  padding:24px 30px 26px;text-align:center;box-shadow:0 0 70px rgba(0,0,0,.85)}
+#alert.warn .box{border-color:var(--amber)} #alert.ok .box{border-color:var(--green)}
+.atitle{font-size:10px;letter-spacing:2.6px;color:var(--muted)}
+.abig{font-size:clamp(22px,3.4vw,40px);font-weight:900;letter-spacing:2px;margin:8px 0 12px;
+  color:var(--accent);text-shadow:0 0 22px var(--accent)}
+#alert.warn .abig{color:var(--amber);text-shadow:0 0 22px rgba(224,168,62,.6)}
+#alert.ok .abig{color:var(--green);text-shadow:0 0 22px rgba(62,240,122,.6)}
+.abody{font-size:13px;line-height:1.7;color:var(--text);max-width:52ch;margin:0 auto}
+.alist{list-style:none;margin:16px auto 6px;padding:0;font-family:ui-monospace,Menlo,monospace;
+  font-size:12px;text-align:left;display:inline-block;min-width:320px}
+.alist li{padding:4px 2px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;gap:22px}
+.alist li b{color:var(--text);font-weight:700}
+.alist li .st{letter-spacing:1.5px;text-transform:uppercase;font-size:10px;align-self:center}
+.alist li .st.blocked{color:var(--amber)} .alist li .st.removed{color:var(--green)} .alist li .st.queued{color:var(--muted)}
+.afoot{margin-top:14px;font-size:12px;color:var(--muted);letter-spacing:.5px}
+.pstat{letter-spacing:1px}
+</style>
+</head>
+<body>
+
+<canvas id="rain"></canvas>
+<div id="vig"></div><div id="scan"></div><div id="flash"></div><div id="glitch"></div>
+<div id="banner"><div class="b" id="bannerT">—<span class="s" id="bannerS">—</span></div></div>
+<div id="alert"><div class="box">
+  <div class="atitle" id="alertTitle"></div>
+  <div class="abig" id="alertBig"></div>
+  <div class="abody" id="alertBody"></div>
+  <ul class="alist" id="alertList"></ul>
+  <div class="afoot" id="alertFoot"></div>
+</div></div>
+
+<div id="arm">
+  <h1>◈ SENTINEL</h1>
+  <div class="sub">IP REMOVAL CONSOLE · BS50X PLUGIN</div>
+  <input id="armIn" value="203.0.113.47" placeholder="target indicator">
+  <button id="engage">ENGAGE — LOCK &amp; RUN</button>
+  <div class="warn">
+    <b>Visual simulation only.</b> No network is contacted. Every address, location, detection and
+    hop below is generated locally by <code>Math.random()</code>.<br><br>
+    On engage: fullscreen, cursor hidden, keyboard and mouse swallowed.<br>
+    <kbd>F7</kbd> releases everything and clears the auto-restart flag.<br>
+    After release the launch screen returns — press <kbd>ENGAGE</kbd> to run again, no reload needed.<br>
+    <span style="color:#4d7a5f">Closing the tab prompts a confirm; reopening the file resumes automatically.
+    Alt+Tab / Cmd+Tab / Ctrl+Alt+Del are never blocked.</span>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="topbar">
+    <div class="dots"><span></span><span></span><span></span></div>
+    <div class="title">◈ SENTINEL // IP REMOVAL · BS50X</div>
+    <div class="tl"><span class="lbl">THREAT LEVEL</span><span class="val" id="tlVal">5</span><span class="lbl" id="tlName">NOMINAL</span></div>
+    <div class="right"><span id="runs" class="dim">run 1</span><span id="clock">--:--:--</span></div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h3>conflict stream <span id="streamBadge" class="badge live">LIVE</span></h3>
+      <div class="hero">
+        <div><div class="eyebrow">ACTIVE CASE</div><div class="case" id="caseId">CASE-2026-0000</div>
+          <div class="muted">Multi-party prefix contention · target <b id="tgt">—</b></div></div>
+        <div class="risk">COMPOSITE RISK<br><small id="riskScore">41 / 100</small><br>
+          <span class="muted" id="actor">actor: unattributed</span></div>
+      </div>
+      <div class="clockrow"><span class="eyebrow">ELAPSED · REMOVAL</span><span id="elapsed">T+00:00:00</span></div>
+      <div class="chips"><span>IPv4</span><span>IPv6</span><span>BGP</span><span>ARP</span><span>ASN</span><span>WHOIS</span><span>GEO</span><span>TLS</span><span>RPKI</span></div>
+      <div id="terminal"></div>
+    </div>
+
+    <div class="panel">
+      <h3>geo-trace <span id="geoBadge" class="badge live">TRACING</span></h3>
+      <div id="geoWrap"><canvas id="geo"></canvas><div id="geoLbl">awaiting route…</div></div>
+      <div id="hops"></div>
+      <h3 style="margin-top:7px">escalation ladder <span id="phaseCt" class="dim">00 / 14</span></h3>
+      <div id="phaseScroll"></div>
+      <h3 style="margin-top:6px">conflict rate <span class="dim" id="rateVal">0 /min</span></h3>
+      <canvas id="spark"></canvas>
+    </div>
+
+    <div class="panel col3">
+      <h3>detections <span id="detCt" class="badge live">0</span></h3>
+      <div id="detFeed"></div>
+      <h3 style="margin-top:7px">prefix contention</h3>
+      <table class="cf"><thead><tr><th>prefix</th><th>claim a</th><th>claim b</th><th>state</th></tr></thead>
+      <tbody id="cfBody"></tbody></table>
+      <h3 style="margin-top:7px">telemetry <span id="uptime" class="dim">00:00:00</span></h3>
+      <div class="stat-row"><span class="label">cpu</span><span id="cpuval">--%</span></div>
+      <div class="bar"><div id="cpubar" style="width:0%"></div></div>
+      <div class="stat-row"><span class="label">mem</span><span id="memval">--%</span></div>
+      <div class="bar"><div id="membar" style="width:0%"></div></div>
+      <div class="stat-row"><span class="label">net io</span><span id="netval">-- KB/s</span></div>
+      <div class="bar"><div id="netbar" style="width:0%"></div></div>
+      <div class="stat-row"><span class="label" id="hostileLbl">hostile IP origins</span><span id="hostileCt" style="color:var(--crit)">0</span></div>
+      <div class="stat-row"><span class="label">contested prefixes</span><span id="cpx" style="color:var(--crit)">0</span></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span id="hostinfo">core-node-07 · kernel 6.9.2-prod · tty1</span>
+    <span id="depth">depth: perimeter</span>
+    <span id="relhint">F7 · release</span>
+    <span id="pluginStatus" class="pstat"></span>
+    <span id="sessioninfo">session ········</span>
+  </div>
+</div>
+
+<script>
+/* ============ helpers ============ */
+const rand=(a,b)=>Math.floor(Math.random()*(b-a+1))+a, pick=a=>a[rand(0,a.length-1)];
+const hex=n=>Array.from({length:n},()=>rand(0,15).toString(16)).join('');
+const $=id=>document.getElementById(id), pad=(n,w=2)=>String(n|0).padStart(w,'0');
+$('sessioninfo').textContent='session '+hex(10);
+$('caseId').textContent='CASE-2026-'+rand(1000,9999);
+
+/* ============ PERSISTENCE / AUTO-RESTART ============ */
+const K_ARM='sentinel.armed', K_TGT='sentinel.target', K_RUNS='sentinel.runs';
+const wasArmed = localStorage.getItem(K_ARM)==='1';
+let runCount = parseInt(localStorage.getItem(K_RUNS)||'0',10);
+
+/* ============ LOCK LAYER ============ */
+const EXIT_KEY='F7'; let locked=false, released=false;
+async function engageLock(){
+  try{ await document.documentElement.requestFullscreen({navigationUI:'hide'}); }catch(e){}
+  try{ if(navigator.keyboard?.lock) await navigator.keyboard.lock(['Escape','F11','KeyW','KeyQ','KeyR','KeyT','Tab']); }catch(e){}
+  locked=true; document.body.classList.add('locked');
+}
+function releaseLock(){
+  if(released) return;
+  released=true; locked=false;
+  localStorage.removeItem(K_ARM); localStorage.removeItem(K_RUNS);
+  document.body.classList.remove('locked','shk1','shk2','shk3','lvl4','lvl3','lvl2','lvl1');
+  try{ navigator.keyboard?.unlock?.(); }catch(e){}
+  if(document.fullscreenElement) document.exitFullscreen?.().catch(()=>{});
+  stopSim();
+  pushLine('hdr',' SESSION RELEASED — input restored · auto-restart cleared ');
+  pushLine('dim','nothing was scanned. no packets left this machine.');
+  $('streamBadge').className='badge live'; $('streamBadge').textContent='RELEASED';
+  $('geoBadge').className='badge live'; $('geoBadge').textContent='IDLE';
+  $('banner').style.opacity='0';
+  runCount=0;                       /* a fresh relaunch starts at run 1 */
+  setTimeout(mountArm,650);         /* bring the ENGAGE screen back — relaunch without reloading */
+}
+['keydown','keyup','keypress'].forEach(t=>window.addEventListener(t,e=>{
+  if(!locked) return;
+  if(t==='keydown'&&(e.key===EXIT_KEY||e.code==='F7')){e.preventDefault();e.stopPropagation();releaseLock();return;}
+  e.preventDefault(); e.stopPropagation();
+},true));
+['contextmenu','selectstart','dragstart','mousedown','mouseup','click','dblclick','auxclick'].forEach(t=>
+  window.addEventListener(t,e=>{if(locked){e.preventDefault();e.stopPropagation();}},{capture:true,passive:false}));
+window.addEventListener('wheel',e=>{if(locked){e.preventDefault();e.stopPropagation();}},{capture:true,passive:false});
+window.addEventListener('touchmove',e=>{if(locked)e.preventDefault();},{capture:true,passive:false});
+document.addEventListener('fullscreenchange',()=>{
+  resize(); initRain();
+  if(locked&&!document.fullscreenElement&&!released){
+    pushLine('crit','fullscreen context lost — reasserting display lock');
+    setTimeout(()=>{ if(locked&&!released) document.documentElement.requestFullscreen?.().catch(()=>{}); },220);
+  }
+});
+/* close guard — browser shows its own confirm; can't be suppressed or styled */
+window.addEventListener('beforeunload',e=>{ if(locked&&!released){ e.preventDefault(); e.returnValue=''; } });
+
+/* ============ clocks ============ */
+setInterval(()=>$('clock').textContent=new Date().toTimeString().slice(0,8),1000);
+$('clock').textContent=new Date().toTimeString().slice(0,8);
+let upSec=rand(40000,900000);
+setInterval(()=>{upSec++;$('uptime').textContent=`${pad(upSec/3600)}:${pad((upSec%3600)/60)}:${pad(upSec%60)}`;},1000);
+let t0=0, elapsedCap=0, elapsedFrozen=false;
+setInterval(()=>{ if(!t0||elapsedFrozen)return; let ms=Date.now()-t0; if(elapsedCap&&ms>elapsedCap)ms=elapsedCap;
+  const s=ms/1000|0; $('elapsed').textContent=`T+${pad(s/3600)}:${pad((s%3600)/60)}:${pad(s%60)}`;},1000);
+
+/* ============ terminal ============ */
+const term=$('terminal'), MAX=140;
+function pushLine(cls,text){
+  const d=document.createElement('div'); d.className='ln';
+  d.innerHTML=`<span class="dim">${new Date().toTimeString().slice(0,8)}</span> <span class="${cls}">${text}</span>`;
+  term.appendChild(d);
+  while(term.children.length>MAX) term.removeChild(term.firstChild);
+  term.scrollTop=term.scrollHeight;
+}
+function flash(o=.16){const f=$('flash');f.style.opacity=o;setTimeout(()=>f.style.opacity='0',100);}
+function glitch(){const g=$('glitch');g.style.opacity='.5';setTimeout(()=>g.style.opacity='0',70);}
+function banner(t,s,ms=2200,style){const bt=$('bannerT');bt.classList.toggle('secure',style==='secure');
+  bt.firstChild.nodeValue=t;$('bannerS').textContent=s;
+  $('banner').style.opacity='1';setTimeout(()=>$('banner').style.opacity='0',ms);}
+
+/* ============ fictional world ============ */
+const ACTORS=['CRIMSON ORACLE','PALE VECTOR','IRON HALCYON','SILENT MERIDIAN','HOLLOW TIDE','ASHEN LATTICE','NULL SERAPH','GREY COMPASS'];
+const BLOCS=['TRANSIT-BLOC 4','CORRIDOR 12','MERIDIAN-7','SECTOR AURUM','NORTHGATE EXCHANGE','BASIN REGISTRY 9'];
+const REGS=['REGISTRY-ALPHA','REGISTRY-DELTA','REGISTRY-OMEGA','REGISTRY-KAPPA'];
+const SVCS=['ThreatFox','AbuseIPDB','GreyNoise','VirusTotal','Shodan','WHOIS','MaxMind','DNSDB','Censys','RouteViews'];
+const IH=['10.24.6.'+rand(2,254),'10.24.9.'+rand(2,254),'172.18.3.'+rand(2,254),'192.168.44.'+rand(2,254)];
+/* invented place names on an invented grid — x,y are 0..1 canvas coords */
+const NODES=[
+ ['VELDT EXCHANGE',.10,.34],['KESTREL LANDING',.20,.62],['ARC BASIN',.30,.22],
+ ['HOLLOW REACH',.36,.74],['SABLE GATEWAY',.46,.40],['TERRAN SPUR',.55,.18],
+ ['MERIDIAN VAULT',.58,.66],['OBSIDIAN QUAY',.68,.36],['CINDER FLATS',.74,.72],
+ ['NORTHGATE HUB',.82,.26],['DRIFT STATION 9',.88,.56],['PALE HARBOUR',.94,.40],
+ ['LOW ORBIT RELAY',.42,.08],['DEEP TRENCH NODE',.64,.90],['ASHFALL DEPOT',.16,.86]
+];
+const pubIP=()=>`${rand(1,223)}.${rand(0,255)}.${rand(0,255)}.${rand(1,254)}`;
+const prefix=()=>`${rand(1,223)}.${rand(0,255)}.${pick([0,0,0,64,128,192])}.0/${pick([18,19,20,21,22,23,24,24])}`;
+const asn=()=>'AS'+rand(1000,65000);
+
+/* ============ DETECTION ENGINE ============ */
+const SIGS=[
+ ['DUPLICATE-ADDR-COLLISION','ARP'],['ARP-CACHE-POISON','L2'],['GRATUITOUS-ARP-FLOOD','L2'],
+ ['BGP-ORIGIN-FORGERY','BGP'],['RPKI-INVALID-ORIGIN','BGP'],['AS-PATH-POISONING','BGP'],
+ ['PREFIX-SUBHIJACK','BGP'],['ROUTE-LEAK-TYPE-6','BGP'],['BLACKHOLE-COMMUNITY-ABUSE','BGP'],
+ ['ANYCAST-WITHDRAWAL','DNS'],['DNS-CACHE-DIVERGENCE','DNS'],['PASSIVE-DNS-FLIP','DNS'],
+ ['TLS-CERT-MISMATCH','TLS'],['JARM-CLUSTER-MATCH','TLS'],['C2-BEACON-INTERVAL','NET'],
+ ['GEO-ATTRIBUTION-CONFLICT','GEO'],['SANCTIONED-RANGE-TRANSIT','GEO'],['TOR-EXIT-CORRELATION','NET'],
+ ['CREDENTIAL-SPRAY','AUTH'],['KERBEROAST-PATTERN','AUTH'],['LATERAL-SMB-BURST','NET'],
+ ['EXFIL-ENTROPY-SPIKE','NET'],['ROUTE-MAP-TAMPER','CFG'],['TRUST-ANCHOR-INVALID','PKI']
+];
+let detCount=0;
+function emitDetection(minSev=1){
+  const [sig,kind]=pick(SIGS);
+  const score=rand(Math.max(30,minSev*18),99);
+  const sev=score>=88?'crit':score>=72?'high':score>=52?'med':'low';
+  const ip=pubIP(), node=pick(NODES)[0];
+  const d=document.createElement('div');
+  d.className='det sev-'+sev;
+  d.innerHTML=`<div class="t1"><span class="sig">${sig}</span><span class="sc">${score}</span></div>
+    <div class="t2"><span>${ip} · ${kind}</span><span>${node}</span></div>`;
+  const f=$('detFeed'); f.insertBefore(d,f.firstChild);
+  while(f.children.length>14) f.removeChild(f.lastChild);
+  detCount++; $('detCt').textContent=detCount.toLocaleString();
+  if(sev==='crit'){ $('detCt').className='badge alert';
+    pushLine('crit',`DETECTION ${sig} · ${ip} · score ${score} · origin ${node}`); }
+  else if(sev==='high') pushLine('err',`detection ${sig} · ${ip} · score ${score}`);
+  return {sig,score,sev,ip,node};
+}
+
+/* ============ GEO-TRACE SCENE ============ */
+const gc=$('geo'), gx=gc.getContext('2d');
+let route=[], traceIdx=0, pulses=[];
+function sizeGeo(){ gc.width=gc.clientWidth*2; gc.height=300; gx.scale(1,1); }
+function newRoute(){
+  const n=rand(5,8), shuffled=[...NODES].sort(()=>Math.random()-.5).slice(0,n);
+  route=shuffled.map((s,i)=>({name:s[0],x:s[1],y:s[2],ip:pubIP(),ms:rand(4,60)+i*rand(6,40),asn:asn()}));
+  traceIdx=0; $('hops').innerHTML='';
+  $('geoLbl').textContent='tracing '+TARGET+' → '+route[route.length-1].name;
+}
+function traceStep(){
+  if(!running) return;
+  if(traceIdx>=route.length){
+    $('geoLbl').textContent='route resolved · terminus '+route[route.length-1].name;
+    later(()=>{ if(!running)return; newRoute(); traceStep(); }, rand(6000,11000));
+    return;
+  }
+  const h=route[traceIdx], last=traceIdx===route.length-1;
+  const row=document.createElement('div');
+  row.className='h'+(last?' final':'');
+  row.innerHTML=`<span class="n">${pad(traceIdx+1)}</span><span class="loc">${h.name}</span>
+    <span class="dim">${h.ip}</span><span class="ms">${h.ms}ms</span>`;
+  $('hops').appendChild(row);
+  while($('hops').children.length>7) $('hops').removeChild($('hops').firstChild);
+  if(traceIdx>0) pulses.push({from:route[traceIdx-1],to:h,t:0});
+  if(last){ pushLine('info',`trace terminus ${h.name} · ${h.ip} · ${h.asn} · ${h.ms}ms`);
+    if(phase>=4) emitDetection(3); }
+  traceIdx++;
+  later(traceStep, rand(320,900)/intensity);
+}
+function drawGeo(){
+  const w=gc.width=gc.clientWidth, h=gc.height=150;
+  gx.clearRect(0,0,w,h);
+  /* grid */
+  gx.strokeStyle='rgba(62,240,122,.07)'; gx.lineWidth=1;
+  for(let i=0;i<=10;i++){gx.beginPath();gx.moveTo(i*w/10,0);gx.lineTo(i*w/10,h);gx.stroke();}
+  for(let i=0;i<=5;i++){gx.beginPath();gx.moveTo(0,i*h/5);gx.lineTo(w,i*h/5);gx.stroke();}
+  /* all nodes */
+  NODES.forEach(n=>{ gx.fillStyle='rgba(77,122,95,.55)';
+    gx.beginPath();gx.arc(n[1]*w,n[2]*h,1.6,0,7);gx.fill(); });
+  /* route */
+  if(route.length){
+    gx.strokeStyle=hot?'rgba(255,82,64,.5)':'rgba(62,240,122,.45)'; gx.lineWidth=1.2;
+    gx.beginPath();
+    route.slice(0,Math.max(traceIdx,1)).forEach((p,i)=>{const X=p.x*w,Y=p.y*h;i?gx.lineTo(X,Y):gx.moveTo(X,Y);});
+    gx.stroke();
+    route.slice(0,traceIdx).forEach((p,i)=>{
+      const X=p.x*w,Y=p.y*h, last=i===traceIdx-1;
+      gx.fillStyle=last?(hot?'#ff5240':'#3ef07a'):'rgba(200,242,214,.7)';
+      gx.beginPath();gx.arc(X,Y,last?4:2.4,0,7);gx.fill();
+      if(last){ gx.strokeStyle=hot?'rgba(255,82,64,.6)':'rgba(62,240,122,.5)';
+        gx.beginPath();gx.arc(X,Y,8+Math.sin(Date.now()/160)*3,0,7);gx.stroke(); }
+      gx.fillStyle='rgba(120,180,145,.85)'; gx.font='7.5px ui-monospace,monospace';
+      gx.fillText(p.name,X+6,Y-5);
+    });
+  }
+  /* packet pulses */
+  pulses=pulses.filter(p=>p.t<1);
+  pulses.forEach(p=>{ p.t+=.035;
+    const X=(p.from.x+(p.to.x-p.from.x)*p.t)*w, Y=(p.from.y+(p.to.y-p.from.y)*p.t)*h;
+    gx.fillStyle=hot?'#ff9a90':'#eafff1'; gx.beginPath();gx.arc(X,Y,2.2,0,7);gx.fill(); });
+  requestAnimationFrame(drawGeo);
+}
+requestAnimationFrame(drawGeo);
+
+/* ============ escalation ladder ============ */
+const PHASES=[
+ ['perimeter recon','edge surface enumerated',5,'NOMINAL'],
+ ['registry ownership audit','allocation records reconciled',5,'NOMINAL'],
+ ['duplicate address detection','address collisions confirmed',4,'ELEVATED'],
+ ['arp / neighbour poisoning','layer-2 tampering isolated',4,'ELEVATED'],
+ ['prefix claim contention','competing claims logged',4,'ELEVATED'],
+ ['bgp route anomaly','path divergence mapped',3,'HIGH'],
+ ['prefix hijack confirmed','origin forgery verified',3,'HIGH'],
+ ['cross-corridor transit war','transit peering destabilised',3,'HIGH'],
+ ['blackhole flood','null-route storm absorbed',2,'SEVERE'],
+ ['credential surface map','auth endpoints indexed',2,'SEVERE'],
+ ['session pivot','internal segment reached',2,'SEVERE'],
+ ['lateral spread','east-west traffic captured',1,'CRITICAL'],
+ ['core segment breach','root context simulated',1,'CRITICAL'],
+ ['registry authority collapse','trust anchors invalidated',1,'CRITICAL'],
+];
+function renderPhases(a){
+  const s=Math.max(0,Math.min(a-3,PHASES.length-7));
+  $('phaseScroll').innerHTML=PHASES.slice(s,s+7).map((p,j)=>{
+    const i=s+j,c=i<a?'done':(i===a?'active':''),st=i<a?'DONE':(i===a?'RUNNING':'queued');
+    return `<div class="phase ${c}"><span>${pad(i+1)} · ${p[0]}</span><span class="st">${st}</span></div>`;
+  }).join('');
+  $('phaseCt').textContent=`${pad(Math.max(a,0)+(a<0?0:1))} / ${PHASES.length}`;
+}
+renderPhases(-1);
+function setLevel(n,nm){
+  document.body.classList.remove('lvl4','lvl3','lvl2','lvl1','shk1','shk2','shk3');
+  if(n<5) document.body.classList.add('lvl'+n);
+  if(n===3) document.body.classList.add('shk1');
+  if(n===2) document.body.classList.add('shk2');
+  if(n===1) document.body.classList.add('shk3');
+  $('tlVal').textContent=n; $('tlName').textContent=nm; hot=n<=3;
+}
+
+/* ============ chatter ============ */
+const AMBIENT=[
+ ()=>['ok',`[${rand(100,999)}] GET /api/v2/health 200 ${rand(4,40)}ms`],
+ ()=>['ok',`provider ${pick(SVCS)} response verified`],
+ ()=>['dim',`cache hit ratio ${rand(88,99)}.${rand(0,9)}%`],
+ ()=>['info',`queue depth ${rand(0,240)} jobs · avg wait ${rand(2,90)}ms`],
+ ()=>['dim',`heartbeat ${pick(SVCS)} ok`],
+ ()=>['ok',`indicator enrichment completed via ${pick(SVCS)}`],
+ ()=>['dim',`gc pause ${rand(1,9)}ms · heap ${rand(40,70)}%`],
+];
+const CONFLICT=[
+ ()=>['warn',`duplicate address ${pubIP()} — two MACs answering (${hex(2)}:${hex(2)}:${hex(2)} / ${hex(2)}:${hex(2)}:${hex(2)})`],
+ ()=>['err',`ARP collision on ${prefix()} · gratuitous reply storm ${rand(40,900)}/s`],
+ ()=>['crit',`PREFIX CONTENTION ${prefix()} — ${asn()} vs ${asn()} · both origins signed`],
+ ()=>['warn',`route flap ${prefix()} · ${rand(4,90)} withdrawals in ${rand(10,60)}s`],
+ ()=>['crit',`HIJACK ${prefix()} announced by ${asn()} (${pick(BLOCS)}) — legit origin ${asn()}`],
+ ()=>['err',`RPKI validation FAILED · invalid origin for ${prefix()}`],
+ ()=>['warn',`AS-PATH poisoning via ${pick(BLOCS)} · path length ${rand(9,34)}`],
+ ()=>['info',`${pick(REGS)} disputes allocation of ${prefix()} · ticket #${rand(10000,99999)}`],
+ ()=>['crit',`TRANSIT DISPUTE — ${pick(BLOCS)} depeering ${pick(BLOCS)} · ${rand(3,40)}% displaced`],
+ ()=>['err',`blackhole community set on ${prefix()} · ${rand(2,50)} Gbps null-routed`],
+ ()=>['warn',`geo attribution conflict ${pubIP()} — ${pick(NODES)[0]} / ${pick(NODES)[0]}`],
+ ()=>['crit',`attribution shifted → ${pick(ACTORS)} (confidence ${rand(55,94)}%)`],
+ ()=>['err',`anycast node ${rand(1,40)} withdrawn · +${rand(60,900)}ms across ${pick(BLOCS)}`],
+];
+const INTRUSION=[
+ ()=>['info',`probing ${TARGET} :: tcp/${pick([21,22,25,80,179,443,445,3306,8080,9200])} → ${pick(['open','filtered','closed'])}`],
+ ()=>['dim',`banner :: ${pick(['nginx/1.25.3','OpenSSH_9.6p1','Apache/2.4.58','BIRD 2.14','FRRouting 9.1'])}`],
+ ()=>['warn',`weak posture — ${pick(['TLS 1.0 accepted','no HSTS','verbose banner','no RPKI ROV'])}`],
+ ()=>['err',`access denied at ${pick(IH)} — rotating vector`],
+ ()=>['ok',`vector accepted · pivoting to ${pick(IH)}`],
+ ()=>['crit',`elevating :: ${pick(['uid=0(root)','SYSTEM token cloned','TGT captured','route-map write'])}`],
+ ()=>['dim',`capture buffer ${rand(1,9)}.${rand(0,9)} MB · entropy ${rand(70,99)}%`],
+ ()=>['crit',`${pick(ACTORS)} infrastructure overlap on ${pubIP()}`],
+];
+
+/* ============ telemetry ============ */
+let hot=false,intensity=1,contested=0;
+setInterval(()=>{
+  const c=hot?rand(78,99):rand(18,72),m=hot?rand(68,96):rand(35,68),n=hot?rand(2600,9800):rand(80,2400);
+  $('cpuval').textContent=c+'%';$('cpubar').style.width=c+'%';
+  $('memval').textContent=m+'%';$('membar').style.width=m+'%';
+  $('netval').textContent=n+' KB/s';$('netbar').style.width=Math.min(100,n/98)+'%';
+  ['cpubar','membar','netbar'].forEach(i=>$(i).classList.toggle('hot',hot));
+},900);
+const STATES=[['CONTESTED','dis'],['HIJACKED','hij'],['DISPUTED','dis'],['FLAPPING','hij'],['RESOLVED','res']];
+const cfInterval=setInterval(()=>{ $('cfBody').innerHTML=Array.from({length:7},()=>{
+  const s=hot?pick(STATES.slice(0,4)):pick(STATES);
+  return `<tr><td>${prefix()}</td><td class="dim">${asn()}</td><td class="dim">${asn()}</td><td class="${s[1]}">${s[0]}</td></tr>`;
+}).join(''); },2600);
+const sp=$('spark'),sx=sp.getContext('2d');let hist=Array(80).fill(0);
+setInterval(()=>{const r=hot?rand(180,1400):rand(2,60);hist.push(r);hist.shift();
+  $('rateVal').textContent=r.toLocaleString()+' /min';
+  const w=sp.width=sp.clientWidth,h=sp.height=42,mx=Math.max(10,...hist);
+  sx.clearRect(0,0,w,h);sx.beginPath();
+  hist.forEach((v,i)=>{const x=i/(hist.length-1)*w,y=h-(v/mx)*(h-5)-2;i?sx.lineTo(x,y):sx.moveTo(x,y);});
+  sx.strokeStyle=hot?'#ff5240':'#3ef07a';sx.lineWidth=1.3;sx.stroke();
+  sx.lineTo(w,h);sx.lineTo(0,h);sx.closePath();
+  sx.fillStyle=hot?'rgba(255,82,64,.12)':'rgba(62,240,122,.1)';sx.fill();},1000);
+
+/* ============ rain ============ */
+const cv=$('rain'),ctx=cv.getContext('2d');
+function resize(){cv.width=innerWidth;cv.height=innerHeight;}
+resize();addEventListener('resize',()=>{resize();initRain();});
+const GL='アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789<>/;{}[]#$%&*·'.split('');
+const FS=14;let cols,drops;
+function initRain(){cols=Math.ceil(cv.width/FS);drops=Array.from({length:cols},()=>rand(-70,0));}
+initRain();
+setInterval(()=>{
+  ctx.fillStyle=hot?'rgba(10,4,4,.10)':'rgba(4,6,10,.11)';ctx.fillRect(0,0,cv.width,cv.height);
+  ctx.font=FS+'px monospace';
+  for(let i=0;i<drops.length;i++){const x=i*FS,y=drops[i]*FS;
+    ctx.fillStyle=Math.random()>.986?'#f2fff7':(hot?'rgba(255,82,64,.6)':'rgba(62,240,122,.55)');
+    ctx.fillText(pick(GL),x,y);
+    if(y>cv.height&&Math.random()>.962)drops[i]=0; drops[i]+=hot?2.1:1;}
+},40);
+
+/* ============ engine ============ */
+let TARGET='—',timers=[],running=false,phase=-1,removed=0;
+const later=(f,m)=>{const t=setTimeout(f,m);timers.push(t);return t;};
+function stopSim(){running=false;timers.forEach(clearTimeout);timers=[];hot=false;intensity=1;setLevel(5,'NOMINAL');hideAlert();}
+
+const HOSTILES=[
+ {ip:'203.0.113.47', asn:'AS64511', node:'MERIDIAN VAULT',  pfx:'203.0.113.0/24'},
+ {ip:'198.51.100.22',asn:'AS64512', node:'NORTHGATE HUB',   pfx:'198.51.100.0/24'},
+ {ip:'192.0.2.180',  asn:'AS64513', node:'OBSIDIAN QUAY',   pfx:'192.0.2.0/24'},
+ {ip:'203.0.113.91', asn:'AS64514', node:'ASHFALL DEPOT',   pfx:'203.0.113.128/25'},
+ {ip:'198.51.100.7', asn:'AS64515', node:'DRIFT STATION 9', pfx:'198.51.100.128/25'},
+];
+function showAlert(kind,title,big,body,rows,foot){
+  const a=$('alert'); a.className='show '+kind;
+  $('alertTitle').textContent=title; $('alertBig').textContent=big; $('alertBody').textContent=body;
+  $('alertFoot').textContent=foot||'';
+  $('alertList').innerHTML=rows.map(r=>`<li><b>${r[0]}</b><span class="st ${r[2]}">${r[1]}</span></li>`).join('');
+}
+function hideAlert(){const a=$('alert'); if(a) a.className='';}
+function ambientLoop(){
+  if(!running)return;
+  const pool=phase<2?AMBIENT:phase<5?[...AMBIENT,...CONFLICT,...CONFLICT]:
+    phase<9?[...CONFLICT,...CONFLICT,...CONFLICT,...INTRUSION]:[...CONFLICT,...INTRUSION,...INTRUSION];
+  pushLine(...pick(pool)());
+  if(phase>=2&&Math.random()>.82){contested+=rand(1,9);$('cpx').textContent=contested.toLocaleString();}
+  if(phase>=6&&Math.random()>.93)glitch();
+  later(ambientLoop,rand(280,820)/intensity);
+}
+function detectionLoop(){
+  if(!running)return;
+  if(phase>=0) emitDetection(Math.max(1,phase/3|0));
+  later(detectionLoop, rand(1400,4200)/Math.max(1,intensity*0.8));
+}
+function emitRemoval(h){
+  const d=document.createElement('div'); d.className='det sev-low';
+  d.innerHTML=`<div class="t1"><span class="sig">ORIGIN-REMOVED</span><span class="sc" style="color:var(--green)">OK</span></div>
+    <div class="t2"><span>${h.ip} · ${h.asn}</span><span>${h.node}</span></div>`;
+  const f=$('detFeed'); f.insertBefore(d,f.firstChild);
+  while(f.children.length>14) f.removeChild(f.lastChild);
+}
+function renderRemoval(){
+  $('cfBody').innerHTML=HOSTILES.map(h=>`<tr><td>${h.pfx}</td><td class="dim">${h.asn}</td><td class="dim">${h.node.split(' ')[0]}</td><td class="${h._done?'res':'hij'}">${h._done?'REMOVED':'QUEUED'}</td></tr>`).join('');
+}
+const DEADLINE=300000;   /* 5 minutes */
+function removeHostile(h,i){
+  if(!running)return;
+  h._done=true; removed=i+1; $('hostileCt').textContent=removed+' / 5';
+  pushLine('ok',`✓ REMOVED ${removed}/5 — ${h.ip} · ${h.asn} · ${h.pfx} · origin purged, route reclaimed`);
+  emitRemoval(h); renderRemoval();
+  banner(`REMOVED ${removed}/5`, h.ip+' purged', 1800,'secure');
+  $('riskScore').textContent=Math.max(4,40-removed*7)+' / 100';
+}
+function complete(){
+  running=false; timers.forEach(clearTimeout); timers=[];
+  hot=false; intensity=1; elapsedFrozen=true; $('elapsed').textContent='T+00:05:00';
+  setLevel(5,'SECURED');
+  $('streamBadge').className='badge'; $('streamBadge').textContent='COMPLETE';
+  $('geoBadge').className='badge'; $('geoBadge').textContent='CLEAR';
+  $('detCt').className='badge'; $('hostileCt').textContent='5 / 5';
+  $('riskScore').textContent='4 / 100'; $('actor').textContent='actor: removed';
+  HOSTILES.forEach(h=>h._done=true); renderRemoval();
+  pushLine('ok','verification complete — 0 hostile origins remain — RPKI valid — no persistence');
+  pushLine('hdr',' ███ REMOVAL COMPLETE — ALL 5 IPs REMOVED ███ ');
+  showAlert('ok','REMOVAL COMPLETE · 5 OF 5','All IPs removed',
+    'BS50X removed all 5 detected hostile IP origins. No hostile origins remain and no persistence was found.',
+    HOSTILES.map(h=>[h.ip+' · '+h.asn,'removed','removed']),
+    'Network secured — 5 of 5 hostile origins removed.');
+  banner('ALL IPs REMOVED','5 of 5 · network secured',6000,'secure');
+}
+function startSim(){
+  running=true; t0=Date.now(); phase=-1; contested=0; detCount=0; removed=0;
+  elapsedCap=DEADLINE; elapsedFrozen=false; hideAlert();
+  HOSTILES.forEach(h=>h._done=false);
+  term.innerHTML=''; $('detFeed').innerHTML=''; $('hops').innerHTML='';
+  $('detCt').className='badge live'; $('detCt').textContent='0';
+  $('streamBadge').className='badge live'; $('streamBadge').textContent='REMOVING';
+  $('geoBadge').className='badge live'; $('geoBadge').textContent='TRACING';
+  $('cpx').textContent='0'; $('hostileCt').textContent='0 / 5'; $('hostileLbl').textContent='IPs removed';
+  $('riskScore').textContent='40 / 100'; $('actor').textContent='actor: contained';
+  $('depth').textContent='depth: removal';
+  $('pluginStatus').textContent='BS50X: connected'; $('pluginStatus').style.color='var(--green)';
+  setLevel(5,'REMOVING'); renderPhases(-1); $('tgt').textContent=TARGET;
+  runCount++; localStorage.setItem(K_RUNS,String(runCount)); $('runs').textContent='run '+runCount;
+  clearInterval(cfInterval); renderRemoval();
+  pushLine('ok','BS50X plugin tool connected — detect + remove capability online');
+  pushLine('ok','removal queue loaded — 5 hostile IP origins');
+  HOSTILES.forEach(h=>pushLine('info',`queued for removal — ${h.ip} · ${h.asn} · ${h.pfx} · ${h.node}`));
+  pushLine('dim','all actors, locations and addresses are fictional and generated locally');
+  banner('BS50X CONNECTED','removal capability online',3200,'secure');
+  showAlert('ok','BS50X PLUGIN CONNECTED','Plugin connected',
+    'The BS50X plugin tool is connected. All 5 detected hostile IP origins are queued for removal. Purge in progress.',
+    HOSTILES.map(h=>[h.ip+' · '+h.asn,'queued','queued']),
+    'Removing origins one at a time. This console completes when all five are clear.');
+  later(()=>{ if(running) hideAlert(); }, 4600);
+  newRoute(); traceStep(); ambientLoop(); detectionLoop();
+  HOSTILES.forEach((h,i)=> later(()=>removeHostile(h,i), 35000+i*40000));
+  const sweep=()=>{ if(!running)return; if(Date.now()-t0>=DEADLINE-3000)return;
+    pushLine('ok',pick([`sweep clean — no residual advertisements for ${pick(HOSTILES).pfx}`,
+      'RPKI re-validated — all origins authorised','passive DNS quiet — no re-appearance detected',
+      'route table converged — no hostile origins present','anchor check ok — trust chain intact']));
+    later(sweep, rand(2600,4600)); };
+  later(()=>{ if(running){setLevel(5,'RECOVERING'); pushLine('hdr',' ███ ALL ORIGINS REMOVED — VERIFYING CLEAN STATE ███ ');} }, 200000);
+  later(sweep, 205000);
+  later(complete, DEADLINE);
+}
+
+/* ============ arm / relaunch / auto-resume ============ */
+const ARM_FRESH_HTML = $('arm').innerHTML;   /* pristine launch screen, captured before any rewrite */
+
+function bindArm(){
+  $('engage')?.addEventListener('click',()=>boot(($('armIn')?.value||'').trim()||'203.0.113.47'));
+  $('armIn')?.addEventListener('keydown',e=>{if(e.key==='Enter')$('engage').click();});
+}
+/* restore the fresh ENGAGE screen so the operator can launch again after a release */
+function mountArm(){
+  const arm=$('arm'); if(!arm) return;
+  arm.innerHTML=ARM_FRESH_HTML;
+  arm.style.display='flex';
+  bindArm();
+}
+
+async function boot(t){
+  released=false;                                        /* let F7 release again on every relaunch */
+  TARGET=t; localStorage.setItem(K_ARM,'1'); localStorage.setItem(K_TGT,t);
+  const arm=$('arm'); if(arm) arm.style.display='none';  /* hide, don't destroy — keeps it relaunchable */
+  await engageLock();
+  startSim();
+}
+
+bindArm();   /* wire the pre-rendered launch screen */
+
+/* resumed after a close/reload while armed */
+if(wasArmed){
+  const t=localStorage.getItem(K_TGT)||'203.0.113.47';
+  $('arm').innerHTML=`<h1>◈ SENTINEL</h1><div class="sub">SESSION RECOVERED — RESUMING</div>
+    <div class="warn">Previous run was not released. Target <b>${t}</b> reacquired.<br>
+    Press <kbd>F7</kbd> after resume to release and clear auto-restart.</div>
+    <button id="engage2">RESUME NOW</button>`;
+  $('engage2').style.cssText=$('engage')?.style.cssText||'';
+  $('engage2').className='';
+  $('engage2').setAttribute('id','engage');
+  $('engage').addEventListener('click',()=>boot(t));
+  /* fullscreen needs a gesture, so any key/click resumes too */
+  const kick=()=>{ document.removeEventListener('keydown',kick); document.removeEventListener('click',kick); boot(t); };
+  document.addEventListener('keydown',kick); document.addEventListener('click',kick);
+}
+</script>
+</body>
+</html>
